@@ -48,6 +48,12 @@ BSB – Brasília
 - Machine learning price prediction
 - Global flight deals scanner
 
+## Local Setup
+
+1. Create a `.env` file in the project root based on `.env.example`.
+2. Fill in your real credentials, mainly `TELEGRAM_BOT_TOKEN` from `@BotFather`.
+3. Run `python main.py`.
+
 ## Author
 
 Mateus Soares Gatti Vasconcellos
