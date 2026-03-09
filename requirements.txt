@@ -1,5 +1,8 @@
-requests
 python-telegram-bot
+requests
+python-dotenv
 pandas
 schedule
-python-dotenv
+numpy
+python-dateutil
+cachetools
