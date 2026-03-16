@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AMADEUS_API_KEY = os.getenv("AMADEUS_API_KEY")
-AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
+# Kiwi Tequila API — registre-se gratuitamente em https://tequila.kiwi.com
+KIWI_API_KEY = os.getenv("KIWI_API_KEY")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")

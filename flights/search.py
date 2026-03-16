@@ -1,110 +1,176 @@
 import requests
-from config import AMADEUS_API_KEY, AMADEUS_API_SECRET
+from config import KIWI_API_KEY
+
+
+TEQUILA_BASE_URL = "https://tequila-api.kiwi.com"
 
 
 class FlightSearchError(Exception):
     pass
 
 
-def _validate_amadeus_credentials() -> None:
-    if not AMADEUS_API_KEY or not AMADEUS_API_SECRET:
+def _validate_kiwi_credentials() -> None:
+    if not KIWI_API_KEY:
         raise FlightSearchError(
-            "Credenciais da Amadeus ausentes. Configure AMADEUS_API_KEY e AMADEUS_API_SECRET no .env."
+            "KIWI_API_KEY nao foi definido. Configure a variavel no arquivo .env. "
+            "Registre-se gratuitamente em: https://tequila.kiwi.com"
         )
 
-    markers = ("your_", "example", "replace", "placeholder")
-    if any(marker in AMADEUS_API_KEY.lower() for marker in markers) or any(
-        marker in AMADEUS_API_SECRET.lower() for marker in markers
-    ):
+    markers = ("your_", "example", "replace", "placeholder", "api_key_here")
+    if any(marker in KIWI_API_KEY.lower() for marker in markers):
         raise FlightSearchError(
-            "Credenciais da Amadeus ainda estao com valor de exemplo no .env."
+            "KIWI_API_KEY ainda esta com valor de exemplo no .env. "
+            "Substitua pela chave real gerada em tequila.kiwi.com."
         )
 
 
-def get_access_token():
-    _validate_amadeus_credentials()
+def search_flights(origin: str, destination: str, date: str) -> dict:
+    """
+    Busca voos entre dois aeroportos em uma data especifica.
 
-    url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+    Args:
+        origin: Codigo IATA do aeroporto de origem (ex: 'CNF')
+        destination: Codigo IATA do aeroporto de destino (ex: 'MDE')
+        date: Data de partida no formato 'YYYY-MM-DD' (ex: '2026-05-10')
 
-    data = {
-        "grant_type": "client_credentials",
-        "client_id": AMADEUS_API_KEY,
-        "client_secret": AMADEUS_API_SECRET
-    }
+    Returns:
+        Dicionario com os dados de voos retornados pela API Kiwi Tequila.
 
+    Raises:
+        FlightSearchError: Se as credenciais forem invalidas ou a busca falhar.
+    """
+    _validate_kiwi_credentials()
+
+    # A Tequila API usa o formato DD/MM/YYYY
     try:
-        response = requests.post(url, data=data, timeout=15)
-    except requests.RequestException as exc:
+        year, month, day = date.split("-")
+        tequila_date = f"{day}/{month}/{year}"
+    except ValueError:
         raise FlightSearchError(
-            "Nao foi possivel conectar na API da Amadeus para autenticar."
-        ) from exc
+            f"Formato de data invalido: '{date}'. Use o formato YYYY-MM-DD (ex: 2026-05-10)."
+        )
 
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise FlightSearchError("Resposta invalida da Amadeus ao gerar token.") from exc
-
-    if response.status_code != 200:
-        details = payload.get("error_description") or payload.get("error") or "Sem detalhes"
-        raise FlightSearchError(f"Falha na autenticacao Amadeus: {details}")
-
-    token = payload.get("access_token")
-    if not token:
-        raise FlightSearchError("A Amadeus nao retornou access_token na autenticacao.")
-
-    return token
-
-
-def search_flights(origin, destination, date):
-
-    token = get_access_token()
-
-    url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+    url = f"{TEQUILA_BASE_URL}/v2/search"
 
     headers = {
-        "Authorization": f"Bearer {token}"
+        "apikey": KIWI_API_KEY,
+        "Content-Type": "application/json",
     }
 
     params = {
-        "originLocationCode": origin,
-        "destinationLocationCode": destination,
-        "departureDate": date,
+        "fly_from": origin,
+        "fly_to": destination,
+        "date_from": tequila_date,
+        "date_to": tequila_date,
         "adults": 1,
-        "max": 5
+        "limit": 5,
+        "curr": "BRL",
+        "sort": "price",
+        "asc_or_desc": "asc",
     }
 
     try:
         response = requests.get(url, headers=headers, params=params, timeout=20)
     except requests.RequestException as exc:
-        raise FlightSearchError("Falha de conexao ao buscar voos na Amadeus.") from exc
+        raise FlightSearchError(
+            "Falha de conexao ao buscar voos na Kiwi Tequila API."
+        ) from exc
 
     try:
         payload = response.json()
     except ValueError as exc:
-        raise FlightSearchError("Resposta invalida da Amadeus ao buscar voos.") from exc
+        raise FlightSearchError(
+            "Resposta invalida da Kiwi Tequila API ao buscar voos."
+        ) from exc
+
+    if response.status_code == 403:
+        raise FlightSearchError(
+            "Autenticacao falhou (403). Verifique se sua KIWI_API_KEY esta correta "
+            "e se sua conta em tequila.kiwi.com esta ativa."
+        )
 
     if response.status_code != 200:
-        errors = payload.get("errors") or []
-        if errors and isinstance(errors, list):
-            detail = errors[0].get("detail") or errors[0].get("title") or "Sem detalhes"
-        else:
-            detail = "Sem detalhes"
-        raise FlightSearchError(f"Erro da Amadeus na busca de voos: {detail}")
+        error_msg = payload.get("message") or payload.get("error") or "Sem detalhes"
+        raise FlightSearchError(
+            f"Erro da Kiwi Tequila API (status {response.status_code}): {error_msg}"
+        )
 
     return payload
 
-def get_cheapest_flight(origin, destination, date):
 
+def get_cheapest_flight(origin: str, destination: str, date: str) -> float | None:
+    """
+    Retorna o preco do voo mais barato encontrado entre origem e destino.
+
+    Args:
+        origin: Codigo IATA do aeroporto de origem.
+        destination: Codigo IATA do aeroporto de destino.
+        date: Data de partida no formato 'YYYY-MM-DD'.
+
+    Returns:
+        Preco minimo encontrado (float em BRL) ou None se nenhum voo for encontrado.
+    """
     data = search_flights(origin, destination, date)
 
-    prices = []
+    prices = [float(flight["price"]) for flight in data.get("data", [])]
 
-    for flight in data.get("data", []):
+    return min(prices) if prices else None
 
-        price = float(flight["price"]["total"])
-        prices.append(price)
 
-    if not prices:
-        return None
+def get_cheapest_destinations(origin: str, date_from: str, date_to: str, limit: int = 10) -> list[dict]:
+    """
+    Busca os destinos mais baratos a partir de uma cidade de origem.
+    Util para o comando /anywhere do bot.
 
-    return min(prices)
+    Args:
+        origin: Codigo IATA do aeroporto de origem.
+        date_from: Data minima de partida no formato 'YYYY-MM-DD'.
+        date_to: Data maxima de partida no formato 'YYYY-MM-DD'.
+        limit: Numero maximo de destinos a retornar.
+
+    Returns:
+        Lista de dicionarios com destino e preco, ordenados pelo mais barato.
+    """
+    _validate_kiwi_credentials()
+
+    def fmt_date(d: str) -> str:
+        y, m, day = d.split("-")
+        return f"{day}/{m}/{y}"
+
+    url = f"{TEQUILA_BASE_URL}/v2/search"
+    headers = {
+        "apikey": KIWI_API_KEY,
+        "Content-Type": "application/json",
+    }
+    params = {
+        "fly_from": origin,
+        "date_from": fmt_date(date_from),
+        "date_to": fmt_date(date_to),
+        "adults": 1,
+        "limit": limit,
+        "curr": "BRL",
+        "sort": "price",
+        "asc_or_desc": "asc",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=20)
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise FlightSearchError("Erro ao buscar destinos baratos na Kiwi API.") from exc
+
+    if response.status_code != 200:
+        error_msg = payload.get("message") or "Sem detalhes"
+        raise FlightSearchError(f"Erro da Kiwi API ao buscar destinos: {error_msg}")
+
+    results = []
+    for flight in payload.get("data", []):
+        results.append({
+            "destination": flight.get("cityTo", "Desconhecido"),
+            "destination_code": flight.get("flyTo", "???"),
+            "country": flight.get("countryTo", {}).get("name", ""),
+            "price": float(flight["price"]),
+            "departure": flight.get("local_departure", "")[:10],
+        })
+
+    return results
