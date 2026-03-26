@@ -1,59 +1,105 @@
-# Smart Flight Finder ✈️
+# Smart Flight Finder
 
-Smart Flight Finder is a Telegram bot that searches for cheap flights using the Amadeus API.
+Bot de Telegram para buscar passagens usando a API Kiwi Tequila.
 
-The bot can:
+## Status atual do projeto
 
-- Search flights to a specific destination
-- Find the cheapest destinations from a city
-- Scan nearby airports
-- Detect flight price drops
-- Send alerts via Telegram
+Implementado no momento:
 
-## Features
+- Comando `/voo` no Telegram
+- Busca de menor preco entre origem e destino em uma data especifica
 
-### Search flights
+Ainda nao implementado no fluxo principal (arquivos existem, mas sem logica final):
 
-Example command:
+- Scanner/agendador de aeroportos
+- Detector de deals
 
-/voo CNF MDE
+## Como usar
 
-Returns the cheapest flight between Belo Horizonte and Medellín.
+Formato do comando:
 
-### Explore cheap destinations
+`/voo ORIGEM DESTINO DATA`
 
-/anywhere CNF
+Exemplo:
 
-Returns the cheapest destinations from Belo Horizonte.
+`/voo CNF MDE 2026-05-10`
 
-### Nearby airport scanner
+Detalhes:
 
-The bot automatically checks nearby airports:
+- `ORIGEM`: codigo IATA de 3 letras (ex: CNF)
+- `DESTINO`: codigo IATA de 3 letras (ex: MDE)
+- `DATA`: formato `YYYY-MM-DD`
 
-CNF – Belo Horizonte  
-GRU – São Paulo  
-GIG – Rio de Janeiro  
-BSB – Brasília  
+## Requisitos
 
-## Tech Stack
+- Python 3.11+ (recomendado)
+- Token do Telegram (via @BotFather)
+- Chave da Kiwi Tequila (https://tequila.kiwi.com)
+
+## Configuracao
+
+Crie/edite o arquivo `.env` na raiz com:
+
+```dotenv
+KIWI_API_KEY=sua_chave_kiwi
+TELEGRAM_BOT_TOKEN=seu_token_do_bot
+```
+
+## Execucao local (Windows / PowerShell)
+
+1. (Opcional) Ative o ambiente virtual:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+2. Instale as dependencias:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+3. Rode o bot:
+
+```powershell
+python main.py
+```
+
+Saida esperada no terminal:
+
+- `Starting Smart Flight Finder...`
+- `Bot running...`
+
+Depois disso, abra o Telegram e teste o comando no chat com o bot.
+
+## Troubleshooting
+
+### Erro de autenticacao Kiwi (401/403)
+
+Mensagem comum:
+
+`Erro ao consultar voos: Erro da Kiwi Tequila API (status 401): Unauthorized`
+
+Checklist:
+
+1. Verifique se `KIWI_API_KEY` esta correta no `.env` (sem espacos extras e sem aspas).
+2. Confirme que a chave foi copiada de https://tequila.kiwi.com e esta ativa.
+3. Gere uma nova chave na Kiwi e atualize o `.env`.
+4. Pare e inicie o bot novamente apos trocar a chave.
+
+### Erro `Conflict` no Telegram
+
+Esse erro indica mais de uma instancia do bot em polling ao mesmo tempo.
+
+1. Feche outras execucoes do bot.
+2. Rode apenas uma instancia de `python main.py`.
+
+## Stack
 
 - Python
-- Telegram Bot API
-- Amadeus Flight API
-- SQLite
+- python-telegram-bot
+- Kiwi Tequila API
 
-## Future Improvements
-
-- Price history tracking
-- Machine learning price prediction
-- Global flight deals scanner
-
-## Local Setup
-
-1. Create a `.env` file in the project root based on `.env.example`.
-2. Fill in your real credentials, mainly `TELEGRAM_BOT_TOKEN` from `@BotFather`.
-3. Run `python main.py`.
-
-## Author
+## Autor
 
 Mateus Soares Gatti Vasconcellos
